@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Master</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Word Master</h1>
+        
+        <div class="welcome-section">
+            <div class="player-setup">
+                <input type="text" id="playerName" placeholder="Enter your name" required>
+                <button id="addPlayer" class="btn">Add Player</button>
+            </div>
+            
+            <div class="players-list">
+                <h3>Players (Minimum 2 required)</h3>
+                <ul id="playersList"></ul>
+                <p class="player-count">Players added: <span id="currentPlayers">0</span></p>
+            </div>
+
+            <button id="startGame" class="btn btn-large" disabled>Start Game</button>
+            
+            <div class="multiplayer-options">
+                <p>Share this link with friends to play together:</p>
+                <div class="share-link">
+                    <input type="text" id="gameLink" readonly>
+                    <button id="copyLink" class="btn">Copy Link</button>
+                </div>
+                <p class="players-online">Players online: <span id="playerCount">0</span></p>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html> 
