@@ -94,7 +94,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function generateGameLink() {
-        const baseUrl = window.location.origin + window.location.pathname;
+        // Use the specific URL instead of window.location
+        const baseUrl = 'https://eggplus84.github.io/wordmasteer';
         const gameLink = `${baseUrl}?game=${gameId}`;
         return gameLink;
     }
