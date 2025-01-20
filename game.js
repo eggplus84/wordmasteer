@@ -31,166 +31,102 @@ document.addEventListener('DOMContentLoaded', function() {
     ];
     const TIMER_DURATION = 15; // Changed from 30 to 15 seconds
 
-    // Initialize game state from session storage
-    function initializeGame() {
-        const storedPlayers = JSON.parse(sessionStorage.getItem('gamePlayers') || '[]');
-        players = storedPlayers;
-        
-        // Initialize scores and hangman states
-        players.forEach(player => {
-            scores[player] = 0;
-            hangmanStates[player] = 0;
-        });
+    // Get game ID from session storage
+    const gameId = sessionStorage.getItem('gameId');
+    
+    // Add function to sync game state
+    function syncGameState() {
+        // Get latest state from localStorage
+        const storedPlayers = JSON.parse(localStorage.getItem(`game_${gameId}_players`) || '[]');
+        const storedScores = JSON.parse(localStorage.getItem(`game_${gameId}_scores`) || '{}');
+        const storedUsedWords = JSON.parse(localStorage.getItem(`game_${gameId}_usedWords`) || '[]');
+        const storedCurrentPlayerIndex = parseInt(localStorage.getItem(`game_${gameId}_currentPlayerIndex`) || '0');
+        const storedCurrentWord = localStorage.getItem(`game_${gameId}_currentWord`) || '';
 
-        // Clear used words
-        usedWords.clear();
-        updateUsedWordsList();
+        // Update local state
+        players = storedPlayers;
+        scores = storedScores;
+        currentPlayerIndex = storedCurrentPlayerIndex;
+        usedWords = new Map(storedUsedWords);
+        if (storedCurrentWord && storedCurrentWord !== currentWord) {
+            currentWord = storedCurrentWord;
+            displayStoredWord(currentWord);
+        }
 
         updatePlayersDisplay();
+        updateUsedWordsList();
     }
 
-    function updatePlayersDisplay() {
-        playersStatus.innerHTML = players.map((player, index) => `
-            <div class="player-badge ${index === currentPlayerIndex ? 'active' : ''}">
-                <div class="player-info">
-                    <span class="player-name">${player}</span>
-                    <span class="player-score">Score: ${scores[player]}</span>
-                </div>
-                <div class="hangman-status">
-                    <span class="hangman-state">${HANGMAN_STATES[hangmanStates[player]]}</span>
-                    <span class="tries-text">${MAX_HANGMAN_TRIES - hangmanStates[player]} tries left</span>
-                </div>
-            </div>
-        `).join('');
+    // Function to save game state
+    function saveGameState() {
+        localStorage.setItem(`game_${gameId}_players`, JSON.stringify(players));
+        localStorage.setItem(`game_${gameId}_scores`, JSON.stringify(scores));
+        localStorage.setItem(`game_${gameId}_usedWords`, JSON.stringify(Array.from(usedWords.entries())));
+        localStorage.setItem(`game_${gameId}_currentPlayerIndex`, currentPlayerIndex.toString());
+        localStorage.setItem(`game_${gameId}_currentWord`, currentWord);
     }
 
-    async function validateWord(word) {
-        try {
-            const response = await fetch(`${DICTIONARY_API_URL}${word}?key=${DICTIONARY_API_KEY}`);
-            const data = await response.json();
-            
-            // Check if the response contains valid dictionary entries
-            return Array.isArray(data) && data.length > 0 && typeof data[0] !== 'string';
-        } catch (error) {
-            console.error('Dictionary API error:', error);
-            return false;
-        }
+    // Display stored word without fetching new one
+    function displayStoredWord(word) {
+        currentWord = word;
+        highlightedIndex = Math.floor(Math.random() * word.length);
+        highlightedLetter = word[highlightedIndex];
+
+        wordDisplay.innerHTML = word.split('').map((letter, index) => {
+            return `<span class="${index === highlightedIndex ? 'highlighted' : ''}">${letter}</span>`;
+        }).join('');
+
+        document.querySelector('.instruction').textContent = 
+            `Type a word that starts with the letter "${highlightedLetter}"`;
     }
 
-    async function getRandomWord() {
-        // List of common letters to start searching with
-        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        const randomLetter = letters[Math.floor(Math.random() * letters.length)];
-        
-        try {
-            console.log('Fetching word starting with:', randomLetter); // Debug log
-            const response = await fetch(`${DICTIONARY_API_URL}${randomLetter}?key=${DICTIONARY_API_KEY}`);
-            const data = await response.json();
-            
-            console.log('API Response:', data); // Debug log
-            
-            // Filter valid words (longer than 4 letters, no spaces or hyphens)
-            const validWords = data.filter(entry => {
-                if (!entry || typeof entry !== 'object') return false;
-                const word = entry.hwi?.hw || ''; // Changed from meta.id to hwi.hw
-                return word.length >= 4 && 
-                       !word.includes(' ') && 
-                       !word.includes('-') &&
-                       !word.includes(':') &&
-                       !word.includes('*');
-            });
-
-            console.log('Valid words found:', validWords.length); // Debug log
-
-            if (validWords.length === 0) {
-                console.log('No valid words found, retrying...'); // Debug log
-                return await getRandomWord(); // Try again with different letter
-            }
-
-            // Get random word from filtered list
-            const randomWord = validWords[Math.floor(Math.random() * validWords.length)];
-            const finalWord = randomWord.hwi.hw.replace(/\*/g, '').toUpperCase();
-            console.log('Selected word:', finalWord); // Debug log
-            return finalWord;
-
-        } catch (error) {
-            console.error('Error fetching random word:', error);
-            // Return a fallback word from a local list
-            const fallbackWords = ['EXAMPLE', 'WELCOME', 'PROGRAM', 'COMPUTER', 'KEYBOARD'];
-            return fallbackWords[Math.floor(Math.random() * fallbackWords.length)];
-        }
-    }
-
+    // Modify displayNewWord to save the word
     async function displayNewWord() {
-        // Show loading state
         wordDisplay.innerHTML = '<span class="loading">Loading new word...</span>';
         
         try {
-            // Get random word from dictionary
             currentWord = await getRandomWord();
-            console.log('Current word set to:', currentWord); // Debug log
+            localStorage.setItem(`game_${gameId}_currentWord`, currentWord);
             
-            // Select random letter position to highlight
             highlightedIndex = Math.floor(Math.random() * currentWord.length);
             highlightedLetter = currentWord[highlightedIndex];
 
-            // Display word with highlighted letter
             const displayHTML = currentWord.split('').map((letter, index) => {
                 return `<span class="${index === highlightedIndex ? 'highlighted' : ''}">${letter}</span>`;
             }).join('');
             
-            console.log('Display HTML:', displayHTML); // Debug log
             wordDisplay.innerHTML = displayHTML;
 
-            // Update instruction
             document.querySelector('.instruction').textContent = 
                 `Type a word that starts with the letter "${highlightedLetter}"`;
         } catch (error) {
             console.error('Error displaying new word:', error);
             wordDisplay.innerHTML = '<span class="error">Error loading word. Please try again.</span>';
-            // Retry after a short delay
             setTimeout(() => displayNewWord(), 2000);
         }
     }
 
-    function startTimer() {
-        timeRemaining = TIMER_DURATION;
-        if (timer) clearInterval(timer);
+    // Add periodic sync
+    setInterval(syncGameState, 1000); // Sync every second
+
+    // Modify game state changes to save state
+    function nextTurn() {
+        currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+        saveGameState();
+        updatePlayersDisplay();
         
-        timeLeft.textContent = timeRemaining;
-        
-        timer = setInterval(() => {
-            timeRemaining--;
-            timeLeft.textContent = timeRemaining;
-            
-            // Add warning class when time is running low
-            if (timeRemaining <= 5) {
-                timeLeft.classList.add('warning');
-            } else {
-                timeLeft.classList.remove('warning');
-            }
-            
-            if (timeRemaining <= 0) {
-                clearInterval(timer);
-                handleError(players[currentPlayerIndex], "Time's up!");
-                nextTurn();
-            }
-        }, 1000);
+        wordInput.value = '';
+        if (currentPlayerIndex === 0) { // Only fetch new word when round completes
+            displayNewWord();
+        }
+        startTimer();
     }
 
-    function updateUsedWordsList() {
-        const usedWordsList = document.getElementById('usedWordsList');
-        usedWordsList.innerHTML = '';
-        
-        // Convert Map to Array and sort by insertion order (most recent first)
-        Array.from(usedWords.entries()).reverse().forEach(([word, player]) => {
-            const wordElement = document.createElement('span');
-            wordElement.className = 'used-word';
-            wordElement.innerHTML = `
-                <span class="player-initial">${player[0]}</span>: ${word}
-            `;
-            usedWordsList.appendChild(wordElement);
-        });
+    // Update other functions to save state
+    function addScore(player, points) {
+        scores[player] += points;
+        saveGameState();
+        updatePlayersDisplay();
     }
 
     async function checkWord() {
@@ -234,6 +170,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Word is valid - add to used words and update score
         usedWords.set(submittedWord, currentPlayer);
+        saveGameState();
         updateUsedWordsList();
         addScore(currentPlayer, 5);
         
@@ -296,11 +233,6 @@ document.addEventListener('DOMContentLoaded', function() {
         window.location.href = 'index.html'; // Return to main menu
     }
 
-    function addScore(player, points) {
-        scores[player] += points;
-        updatePlayersDisplay();
-    }
-
     function showSuccessMessage() {
         const successMessages = [
             'Great word!',
@@ -313,15 +245,91 @@ document.addEventListener('DOMContentLoaded', function() {
         alert(`${message} +5 points!`);
     }
 
-    function nextTurn() {
-        // Move to next player
-        currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
-        updatePlayersDisplay();
+    function updatePlayersDisplay() {
+        playersStatus.innerHTML = players.map((player, index) => `
+            <div class="player-badge ${index === currentPlayerIndex ? 'active' : ''}">
+                <div class="player-info">
+                    <span class="player-name">${player}</span>
+                    <span class="player-score">Score: ${scores[player]}</span>
+                </div>
+                <div class="hangman-status">
+                    <span class="hangman-state">${HANGMAN_STATES[hangmanStates[player]]}</span>
+                    <span class="tries-text">${MAX_HANGMAN_TRIES - hangmanStates[player]} tries left</span>
+                </div>
+            </div>
+        `).join('');
+    }
 
-        // Reset input and start new round
-        wordInput.value = '';
-        displayNewWord();
-        startTimer();
+    function updateUsedWordsList() {
+        const usedWordsList = document.getElementById('usedWordsList');
+        usedWordsList.innerHTML = '';
+        
+        // Convert Map to Array and sort by insertion order (most recent first)
+        Array.from(usedWords.entries()).reverse().forEach(([word, player]) => {
+            const wordElement = document.createElement('span');
+            wordElement.className = 'used-word';
+            wordElement.innerHTML = `
+                <span class="player-initial">${player[0]}</span>: ${word}
+            `;
+            usedWordsList.appendChild(wordElement);
+        });
+    }
+
+    async function validateWord(word) {
+        try {
+            const response = await fetch(`${DICTIONARY_API_URL}${word}?key=${DICTIONARY_API_KEY}`);
+            const data = await response.json();
+            
+            // Check if the response contains valid dictionary entries
+            return Array.isArray(data) && data.length > 0 && typeof data[0] !== 'string';
+        } catch (error) {
+            console.error('Dictionary API error:', error);
+            return false;
+        }
+    }
+
+    async function getRandomWord() {
+        // List of common letters to start searching with
+        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        const randomLetter = letters[Math.floor(Math.random() * letters.length)];
+        
+        try {
+            console.log('Fetching word starting with:', randomLetter); // Debug log
+            const response = await fetch(`${DICTIONARY_API_URL}${randomLetter}?key=${DICTIONARY_API_KEY}`);
+            const data = await response.json();
+            
+            console.log('API Response:', data); // Debug log
+            
+            // Filter valid words (longer than 4 letters, no spaces or hyphens)
+            const validWords = data.filter(entry => {
+                if (!entry || typeof entry !== 'object') return false;
+                const word = entry.hwi?.hw || ''; // Changed from meta.id to hwi.hw
+                return word.length >= 4 && 
+                       !word.includes(' ') && 
+                       !word.includes('-') &&
+                       !word.includes(':') &&
+                       !word.includes('*');
+            });
+
+            console.log('Valid words found:', validWords.length); // Debug log
+
+            if (validWords.length === 0) {
+                console.log('No valid words found, retrying...'); // Debug log
+                return await getRandomWord(); // Try again with different letter
+            }
+
+            // Get random word from filtered list
+            const randomWord = validWords[Math.floor(Math.random() * validWords.length)];
+            const finalWord = randomWord.hwi.hw.replace(/\*/g, '').toUpperCase();
+            console.log('Selected word:', finalWord); // Debug log
+            return finalWord;
+
+        } catch (error) {
+            console.error('Error fetching random word:', error);
+            // Return a fallback word from a local list
+            const fallbackWords = ['EXAMPLE', 'WELCOME', 'PROGRAM', 'COMPUTER', 'KEYBOARD'];
+            return fallbackWords[Math.floor(Math.random() * fallbackWords.length)];
+        }
     }
 
     // Event listeners
@@ -334,7 +342,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize game
     initializeGame();
-    displayNewWord();
+    syncGameState(); // Initial sync
+    if (currentWord) {
+        displayStoredWord(currentWord);
+    } else {
+        displayNewWord();
+    }
     startTimer();
 
     // Add bubbles to game page

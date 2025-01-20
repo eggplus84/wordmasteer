@@ -30,6 +30,12 @@ document.addEventListener('DOMContentLoaded', function() {
             joinMessage, 
             document.querySelector('.player-setup')
         );
+
+        // Load existing players from localStorage
+        const existingPlayers = JSON.parse(localStorage.getItem(`game_${joinGameId}_players`) || '[]');
+        existingPlayers.forEach(player => {
+            addPlayer(player);
+        });
     }
 
     addPlayerButton.addEventListener('click', () => {
@@ -104,9 +110,18 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log(`Starting game with players:`, playersList);
         console.log(`Game ID: ${gameId}`);
         
-        // Store game data in sessionStorage
+        // Store game data in both sessionStorage and localStorage
         sessionStorage.setItem('gamePlayers', JSON.stringify(playersList));
         sessionStorage.setItem('gameId', gameId);
+        localStorage.setItem(`game_${gameId}_players`, JSON.stringify(playersList));
+        
+        // Store current word and other game state
+        if (!joinGameId) { // Only host initializes game state
+            localStorage.setItem(`game_${gameId}_currentWord`, '');
+            localStorage.setItem(`game_${gameId}_scores`, JSON.stringify({}));
+            localStorage.setItem(`game_${gameId}_usedWords`, JSON.stringify([]));
+            localStorage.setItem(`game_${gameId}_currentPlayerIndex`, '0');
+        }
         
         // Redirect to game page
         window.location.href = 'game.html';
