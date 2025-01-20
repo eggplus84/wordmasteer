@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Generate a unique game ID
     const gameId = generateGameId();
-    const gameLink = `${window.location.origin}?game=${gameId}`;
+    const gameLink = generateGameLink();
     gameLinkInput.value = gameLink;
 
     // Check if user came from a shared link
@@ -22,6 +22,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (joinGameId) {
         // User is joining an existing game
         console.log('Joining game:', joinGameId);
+        document.querySelector('h1').textContent = 'Join Word Master Game';
+        const joinMessage = document.createElement('p');
+        joinMessage.className = 'join-message';
+        joinMessage.textContent = 'You are joining an existing game';
+        document.querySelector('.welcome-section').insertBefore(
+            joinMessage, 
+            document.querySelector('.player-setup')
+        );
     }
 
     addPlayerButton.addEventListener('click', () => {
@@ -85,6 +93,12 @@ document.addEventListener('DOMContentLoaded', function() {
         return Math.random().toString(36).substring(2, 15);
     }
 
+    function generateGameLink() {
+        const baseUrl = window.location.origin + window.location.pathname;
+        const gameLink = `${baseUrl}?game=${gameId}`;
+        return gameLink;
+    }
+
     function startGame(playersList, gameId) {
         console.log(`Starting game with players:`, playersList);
         console.log(`Game ID: ${gameId}`);
@@ -133,4 +147,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Decrease interval from 20000ms to 15000ms for more frequent bubble creation
     setInterval(createBubbles, 15000);
+
+    // Update the copy link functionality
+    copyLinkButton.addEventListener('click', async () => {
+        try {
+            await navigator.clipboard.writeText(gameLink);
+            copyLinkButton.textContent = 'Copied!';
+            setTimeout(() => {
+                copyLinkButton.textContent = 'Copy Link';
+            }, 2000);
+        } catch (err) {
+            // Fallback for browsers that don't support clipboard API
+            gameLinkInput.select();
+            document.execCommand('copy');
+            copyLinkButton.textContent = 'Copied!';
+            setTimeout(() => {
+                copyLinkButton.textContent = 'Copy Link';
+            }, 2000);
+        }
+    });
+
+    // Add click-to-select functionality for the game link input
+    gameLinkInput.addEventListener('click', function() {
+        this.select();
+    });
 }); 
