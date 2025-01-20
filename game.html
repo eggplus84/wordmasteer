@@ -10,7 +10,10 @@
     <div class="container game-container">
         <div class="game-header">
             <h2>Word Master</h2>
-            <div class="players-status"></div>
+            <div class="game-status-header">
+                <div class="players-status"></div>
+                <div class="timer">Time: <span id="timeLeft">15</span>s</div>
+            </div>
         </div>
 
         <div class="game-content">
@@ -27,11 +30,6 @@
             <div class="used-words-section">
                 <h3>Used Words</h3>
                 <div class="used-words-list" id="usedWordsList"></div>
-            </div>
-
-            <div class="game-status">
-                <p class="current-player"></p>
-                <p class="timer">Time left: <span id="timeLeft">15</span>s</p>
             </div>
         </div>
     </div>
